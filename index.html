@@ -1,17 +1,197 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Python in HTML</title>
-    <!-- Load PyScript -->
-    <link rel="stylesheet" href="https://pyscript.net">
-    <script type="module" src="https://pyscript.net"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Custom YouTube App</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+    body { background-color: #0f0f0f; color: #ffffff; }
+
+    /* Top Navigation & Search Bar */
+    header {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 15px 20px;
+      background-color: #181818;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom: 1px solid #303030;
+    }
+    .search-container { display: flex; width: 100%; max-width: 600px; }
+    input {
+      flex: 1;
+      padding: 10px 15px;
+      font-size: 16px;
+      border: 1px solid #303030;
+      background-color: #121212;
+      color: white;
+      border-radius: 20px 0 0 20px;
+      outline: none;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: 1px solid #303030;
+      border-left: none;
+      background-color: #222222;
+      color: white;
+      border-radius: 0 20px 20px 0;
+      cursor: pointer;
+    }
+    button:hover { background-color: #383838; }
+
+    /* In-App Video Player Section */
+    #player-section {
+      display: none; /* Hidden until a video is clicked */
+      max-width: 1000px;
+      margin: 20px auto;
+      padding: 0 20px;
+    }
+    .video-wrapper {
+      position: relative;
+      padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+      height: 0;
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .video-wrapper iframe {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+    }
+    #video-title { margin-top: 15px; font-size: 20px; }
+
+    /* Video Grid (Homepage / Search Results) */
+    #video-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+      padding: 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .video-card {
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .video-card:hover { transform: scale(1.02); }
+    .video-card img {
+      width: 100%;
+      border-radius: 10px;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+    }
+    .video-info { margin-top: 10px; }
+    .video-info h3 {
+      font-size: 15px;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .video-info p { font-size: 13px; color: #aaaaaa; margin-top: 5px; }
+  </style>
 </head>
 <body>
-    <h1>Output from Python:</h1>
-    <div id="output"></div>
 
-    <!-- Embed Python code directly -->
-    <script type="py" src="./main.py"></script>
+  <!-- Search Bar Header -->
+  <header>
+    <div class="search-container">
+      <input type="text" id="search-input" placeholder="Search YouTube..." />
+      <button id="search-btn">Search</button>
+    </div>
+  </header>
+
+  <!-- In-App Video Player -->
+  <section id="player-section">
+    <div class="video-wrapper">
+      <iframe id="youtube-player" src="" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+    </div>
+    <h2 id="video-title"></h2>
+  </section>
+
+  <!-- Video Feed Grid -->
+  <main id="video-grid"></main>
+
+  <script>
+    const API_KEY = 'AIzaSyB84mU2Zfh9XAg8ANX7ZR4meiw1qqlHpCk'; // <-- PASTE YOUR API KEY HERE
+    const BASE_URL = 'https://googleapis.com';
+
+    const videoGrid = document.getElementById('video-grid');
+    const searchInput = document.getElementById('search-input');
+    const searchBtn = document.getElementById('search-btn');
+    const playerSection = document.getElementById('player-section');
+    const youtubePlayer = document.getElementById('youtube-player');
+    const videoTitle = document.getElementById('video-title');
+
+    // 1. Fetch "Homepage" (Popular/Trending Videos) on load
+    async function loadHomepageVideos() {
+      try {
+        const response = await fetch(`${BASE_URL}/videos?part=snippet&chart=mostPopular&maxResults=20&regionCode=US&key=${API_KEY}`);
+        const data = await response.json();
+        displayVideos(data.items, false);
+      } catch (error) {
+        console.error('Error loading homepage:', error);
+      }
+    }
+
+    // 2. Search Videos
+    async function searchVideos(query) {
+      if (!query.trim()) return;
+      try {
+        const response = await fetch(`${BASE_URL}/search?part=snippet&type=video&maxResults=20&q=${encodeURIComponent(query)}&key=${API_KEY}`);
+        const data = await response.json();
+        displayVideos(data.items, true);
+      } catch (error) {
+        console.error('Error searching videos:', error);
+      }
+    }
+
+    // 3. Render Video Cards to the Grid
+    function displayVideos(videos, isSearchResult) {
+      videoGrid.innerHTML = ''; // Clear current feed
+      videos.forEach(video => {
+        // Search results structure IDs differently than the videos endpoint
+        const videoId = isSearchResult ? video.id.videoId : video.id;
+        const snippet = video.snippet;
+
+        const card = document.createElement('div');
+        card.className = 'video-card';
+        card.innerHTML = `
+          <img src="${snippet.thumbnails.medium.url}" alt="${snippet.title}">
+          <div class="video-info">
+            <h3>${snippet.title}</h3>
+            <p>${snippet.channelTitle}</p>
+          </div>
+        `;
+
+        // Play video inside the app when clicked
+        card.addEventListener('click', () => playVideo(videoId, snippet.title));
+        videoGrid.appendChild(card);
+      });
+    }
+
+    // 4. Load Video into the Embedded Player
+    function playVideo(videoId, title) {
+      playerSection.style.display = 'block';
+      youtubePlayer.src = `https://youtube.com{videoId}?autoplay=1`;
+      videoTitle.textContent = title;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Event Listeners
+    searchBtn.addEventListener('click', () => searchVideos(searchInput.value));
+    searchInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') searchVideos(searchInput.value);
+    });
+
+    // Initialize App
+    loadHomepageVideos();
+  </script>
 </body>
 </html>
