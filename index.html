@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>My YouTube Viewer</title>
+    <meta charset="UTF-8">
+    <title>Python in HTML</title>
+    <!-- Load PyScript -->
+    <link rel="stylesheet" href="https://pyscript.net">
+    <script type="module" src="https://pyscript.net"></script>
 </head>
 <body>
-  <h2>YouTube Player</h2>
-  <iframe width="560" height="315" 
-    src="https://youtube.com" 
-    frameborder="0" allowfullscreen>
-  </iframe>
+    <h1>Output from Python:</h1>
+    <div id="output"></div>
+
+    <!-- Embed Python code directly -->
+    <script type="py" src="./main.py"></script>
 </body>
 </html>
